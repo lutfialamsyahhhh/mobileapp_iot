@@ -1,0 +1,45 @@
+name: uas_iot
+description: "A new Flutter project."
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # --- Ikon Default iOS ---
+  cupertino_icons: ^1.0.8
+
+  # --- 1. Styling & Font ---
+  # Agar font mirip desain (Poppins/Roboto)
+  google_fonts: ^6.2.1
+
+  # --- 2. Ikon Tambahan ---
+  # Untuk ikon pertanian, suhu, air, dll
+  font_awesome_flutter: ^10.7.0
+
+  # --- 3. Grafik/Chart ---
+  # Penting untuk halaman Analytics & Dashboard
+  fl_chart: ^0.68.0
+
+  # --- 4. Format Tanggal ---
+  # Untuk menampilkan "Sunday, 12.00 AM"
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  # --- 5. Konfigurasi Gambar/Assets ---
+  # Pastikan kamu membuat folder 'assets' dan di dalamnya folder 'images'
+  # di folder root project (sejajar dengan folder 'lib')
+  assets:
+    - assets/images/
