@@ -1,9 +1,78 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:uas_iot/theme.dart';
+import 'package:uas_iot/services/api_service.dart';
 
-class AnalyticsScreen extends StatelessWidget {
+class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
+
+  @override
+  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
+}
+
+class _AnalyticsScreenState extends State<AnalyticsScreen> {
+  // --- VARIABEL PENYIMPAN DATA ---
+  List<FlSpot> lightSpots = [const FlSpot(0, 0)];
+  List<FlSpot> humSpots = [const FlSpot(0, 0)];
+  List<FlSpot> tempSpots = [const FlSpot(0, 0)];
+  List<FlSpot> soilSpots = [const FlSpot(0, 0)];
+
+  double timeCounter = 0; // Sumbu X berjalan
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _getData();
+
+    _timer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      _getData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _getData() async {
+    try {
+      final data = await ApiService.fetchSensors();
+      if (data.isEmpty) return;
+
+      if (mounted) {
+        setState(() {
+          timeCounter++;
+
+          // Ambil Data (Aman dari null)
+          double lux = double.tryParse(data['cahaya'].toString()) ?? 0;
+          double hum =
+              double.tryParse(data['kelembapan_udara'].toString()) ?? 0;
+          double temp = double.tryParse(data['suhu'].toString()) ?? 0;
+          double soil =
+              double.tryParse(data['kelembapan_tanah'].toString()) ?? 0;
+
+          // Update Grafik
+          _updateList(lightSpots, lux);
+          _updateList(humSpots, hum);
+          _updateList(tempSpots, temp);
+          _updateList(soilSpots, soil);
+        });
+      }
+    } catch (e) {
+      print("Error Analytics: $e");
+    }
+  }
+
+  // Batasi hanya 20 data terakhir agar grafik bergerak mulus
+  void _updateList(List<FlSpot> list, double value) {
+    list.add(FlSpot(timeCounter, value));
+    if (list.length > 20) {
+      list.removeAt(0);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,13 +85,13 @@ class AnalyticsScreen extends StatelessWidget {
         ),
         backgroundColor: kDarkBg,
         centerTitle: true,
-        automaticallyImplyLeading: false, // Hilangkan tombol back default
+        automaticallyImplyLeading: false,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Judul Section
+            // Judul Halaman
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -31,48 +100,27 @@ class AnalyticsScreen extends StatelessWidget {
                 color: kCardBg,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Center(
+              child: const Center(
                 child: Text(
-                  "RIWAYAT DATA PER JAM",
-                  style: kSubHeadingStyle.copyWith(fontSize: 14),
+                  "MONITORING REALTIME",
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ),
 
-            // Grid 4 Grafik
+            // Grid Grafik
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2, // 2 Kolom
+              crossAxisCount: 2,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              childAspectRatio: 1.0, // Kotak Persegi (Square)
+              childAspectRatio: 0.9, // Sedikit lebih tinggi agar muat
               children: [
-                _buildChartCard("CAHAYA/JAM", Colors.orange, [
-                  2,
-                  4,
-                  3,
-                  5,
-                  4,
-                  6,
-                ]),
-                _buildChartCard("HUMIDITY/JAM", Colors.blue, [
-                  5,
-                  5,
-                  4,
-                  6,
-                  5,
-                  7,
-                ]),
-                _buildChartCard("SUHU/JAM", Colors.red, [3, 3, 4, 3, 5, 4]),
-                _buildChartCard("PH TANAH/JAM", Colors.green, [
-                  4,
-                  5,
-                  4,
-                  3,
-                  4,
-                  5,
-                ]),
+                _buildCleanChart("CAHAYA", "Lux", Colors.orange, lightSpots),
+                _buildCleanChart("UDARA", "%", Colors.blue, humSpots),
+                _buildCleanChart("SUHU", "°C", Colors.red, tempSpots),
+                _buildCleanChart("TANAH", "%", Colors.green, soilSpots),
               ],
             ),
           ],
@@ -81,105 +129,95 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
-  // --- WIDGET CHART ANALYTICS (DENGAN LABEL) ---
-  Widget _buildChartCard(String title, Color color, List<double> dataPoints) {
-    List<FlSpot> spots = dataPoints.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), e.value);
-    }).toList();
+  // --- WIDGET CHART YANG SUDAH DIRAPIKAN ---
+  Widget _buildCleanChart(
+    String title,
+    String unit,
+    Color color,
+    List<FlSpot> spots,
+  ) {
+    // Ambil nilai terakhir untuk ditampilkan angka besarnya
+    double lastValue = spots.isNotEmpty ? spots.last.y : 0;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        8,
-        12,
-        16,
-        8,
-      ), // Padding disesuaikan agar angka muat
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 1. Header (Judul Kecil & Angka Besar)
           Text(
             title,
-            style: kBodyStyle.copyWith(
+            style: TextStyle(
+              fontSize: 10,
               fontWeight: FontWeight.bold,
-              fontSize: 12,
+              color: Colors.grey,
             ),
           ),
+          const SizedBox(height: 2),
+          Text(
+            "${lastValue.toStringAsFixed(1)} $unit", // Tampilkan angka realtime
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+
           const SizedBox(height: 10),
+
+          // 2. Grafik Bersih
           Expanded(
             child: LineChart(
               LineChartData(
-                gridData: const FlGridData(show: false),
+                // HILANGKAN GRID KOTAK-KOTAK
+                gridData: FlGridData(show: false),
 
-                // KONFIGURASI LABEL SUMBU
+                // HILANGKAN LABEL YANG BIKIN SEMAK
                 titlesData: FlTitlesData(
                   show: true,
-                  rightTitles: const AxisTitles(
+                  rightTitles: AxisTitles(
                     sideTitles: SideTitles(showTitles: false),
                   ),
-                  topTitles: const AxisTitles(
+                  topTitles: AxisTitles(
                     sideTitles: SideTitles(showTitles: false),
                   ),
-
-                  // Label Bawah (Angka kecil 0, 1, 2...)
                   bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 22,
-                      interval: 1,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value
-                              .toInt()
-                              .toString(), // Tampilkan angka sederhana 1, 2, 3
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 10,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  // Label Kiri (Nilai Sensor)
+                    sideTitles: SideTitles(showTitles: false),
+                  ), // Hapus label bawah
                   leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 28, // Beri ruang agar angka puluhan muat
-                      interval: 2, // Loncat 2 angka biar tidak penuh
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          value.toInt().toString(),
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 10,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                    sideTitles: SideTitles(showTitles: false),
+                  ), // Hapus label kiri (opsional, biar bersih)
                 ),
 
                 borderData: FlBorderData(show: false),
+
+                // DATA GARIS
                 lineBarsData: [
                   LineChartBarData(
                     spots: spots,
-                    isCurved: true,
+                    isCurved: true, // Garis melengkung halus
                     color: color,
                     barWidth: 3,
-                    dotData: const FlDotData(show: false),
+                    isStrokeCapRound: true,
+
+                    // INI SOLUSI TANDA ANEH: Matikan dotData (titik-titik)
+                    dotData: FlDotData(show: false),
+
+                    // Warna gradasi di bawah garis
                     belowBarData: BarAreaData(
                       show: true,
-                      color: color.withValues(alpha: 0.2),
+                      color: color.withOpacity(0.2),
                     ),
                   ),
                 ],

@@ -1,114 +1,155 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart'; // Library Grafik
-import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // Library Ikon
-import 'package:uas_iot/theme.dart'; // Tema warna kita
+import 'package:fl_chart/fl_chart.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:uas_iot/theme.dart';
+import 'package:uas_iot/services/api_service.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  // 1. Variabel Data UI
+  String temp = "0";
+  String soilMoist = "0";
+  String airHum = "0";
+  String pumpStatus = "OFF";
+  String lux = "0";
+
+  // 2. Variabel untuk Grafik (Realtime)
+  List<FlSpot> historyData = []; // Menyimpan riwayat suhu
+  double timeIndex = 0; // Sumbu X (Waktu berjalan)
+
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Inisialisasi grafik kosong agar tidak error
+    historyData.add(const FlSpot(0, 0));
+
+    _getData();
+
+    // Refresh otomatis setiap 2 detik
+    _timer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      _getData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  // 3. Fungsi Ambil Data & Update Grafik
+  Future<void> _getData() async {
+    try {
+      final data = await ApiService.fetchSensors();
+
+      if (data.isEmpty) return;
+
+      if (mounted) {
+        setState(() {
+          // --- Update Kartu Sensor ---
+          // Menggunakan teknik '??' agar tidak crash jika data null
+          double suhuAsli = double.tryParse(data['suhu'].toString()) ?? 0.0;
+
+          temp = suhuAsli.toString();
+          soilMoist = (data['kelembapan_tanah'] ?? 0).toString();
+          airHum = (data['kelembapan_udara'] ?? 0).toString();
+          pumpStatus = (data['status_pompa'] ?? "OFF").toString();
+          lux = (data['cahaya'] ?? 0).toString();
+
+          // --- Update Grafik Realtime ---
+          timeIndex++;
+          // Masukkan data suhu terbaru ke grafik
+          historyData.add(FlSpot(timeIndex, suhuAsli));
+
+          // Agar grafik tidak menumpuk, kita hanya simpan 10 data terakhir
+          if (historyData.length > 10) {
+            historyData.removeAt(0);
+          }
+        });
+      }
+    } catch (e) {
+      print("Error update dashboard: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kPageBg, // Warna latar belakang putih tulang
+      backgroundColor: kPageBg,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // =========================================
-              // BAGIAN 1: HEADER (Selamat Datang)
-              // =========================================
               _buildHeader(),
-
               const SizedBox(height: 20),
 
-              // =========================================
-              // BAGIAN 2: KARTU SENSOR (Grid 2x2)
-              // =========================================
-              // Kita pakai GridView agar rapi 2 kolom
+              // GRID SENSOR
               GridView.count(
-                shrinkWrap: true, // Agar tidak error di dalam ScrollView
-                physics:
-                    const NeverScrollableScrollPhysics(), // Scroll ikut parent
-                crossAxisCount: 2, // 2 Kolom
-                crossAxisSpacing: 15, // Jarak antar kartu horizontal
-                mainAxisSpacing: 15, // Jarak antar kartu vertikal
-                childAspectRatio: 1.4, // Mengatur rasio lebar:tinggi kartu
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                crossAxisSpacing: 15,
+                mainAxisSpacing: 15,
+                childAspectRatio: 1.1,
                 children: [
                   _buildSensorCard(
-                    title: "Water Level",
-                    value: "1.2",
-                    unit: "Liter",
-                    icon: Icons.water_drop,
+                    title: "Soil Moist",
+                    value: soilMoist,
+                    unit: "%",
+                    icon: Icons.grass,
+                    color: Colors.brown,
+                  ),
+                  _buildSensorCard(
+                    title: "Air Hum",
+                    value: airHum,
+                    unit: "%",
+                    icon: Icons.cloud,
                     color: Colors.blueAccent,
                   ),
                   _buildSensorCard(
-                    title: "Light",
-                    value: "500",
-                    unit: "Lux",
-                    icon: Icons.wb_sunny,
-                    color: Colors.orangeAccent,
-                  ),
-                  _buildSensorCard(
                     title: "Temp",
-                    value: "26°",
+                    value: "$temp°",
                     unit: "Celcius",
                     icon: FontAwesomeIcons.temperatureThreeQuarters,
                     color: Colors.redAccent,
                   ),
                   _buildSensorCard(
-                    title: "Camera",
-                    value: "ON",
-                    unit: "Live",
-                    icon: Icons.videocam,
-                    color: Colors.purpleAccent,
+                    title: "Light",
+                    value: lux,
+                    unit: "Lux",
+                    icon: Icons.wb_sunny,
+                    color: Colors.orangeAccent,
                   ),
                 ],
               ),
 
               const SizedBox(height: 20),
 
-              // =========================================
-              // BAGIAN 3: GRAFIK PH (Chart)
-              // =========================================
-              Text("Statistik PH Tanah", style: kSubHeadingStyle),
-              const SizedBox(height: 10),
-              Container(
-                height: 200,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      // PERBAIKAN 1: withOpacity -> withValues
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: LineChart(
-                  _mainData(), // Fungsi konfigurasi chart ada di bawah
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // =========================================
-              // BAGIAN 4: STATUS WATERING (Footer)
-              // =========================================
+              // STATUS POMPA
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.cyan.shade100, Colors.blue.shade100],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: pumpStatus == "ON"
+                      ? Colors.green.withOpacity(0.1)
+                      : Colors.red.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: pumpStatus == "ON" ? Colors.green : Colors.red,
+                    width: 2,
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -116,14 +157,49 @@ class DashboardScreen extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Status Penyiraman", style: kSubHeadingStyle),
+                        Text("Status Pompa Air", style: kSubHeadingStyle),
                         const SizedBox(height: 5),
-                        Text("Terjadwal: 16.00 WIB", style: kBodyStyle),
+                        Text(
+                          pumpStatus,
+                          style: kHeadingStyle.copyWith(
+                            color: pumpStatus == "ON"
+                                ? Colors.green
+                                : Colors.red,
+                            fontSize: 24,
+                          ),
+                        ),
                       ],
                     ),
-                    const Icon(Icons.water_drop, size: 40, color: Colors.blue),
+                    Icon(
+                      Icons.water_drop,
+                      size: 40,
+                      color: pumpStatus == "ON" ? Colors.green : Colors.red,
+                    ),
                   ],
                 ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // GRAFIK SUHU REALTIME
+              Text("Statistik Suhu (Realtime)", style: kSubHeadingStyle),
+              const SizedBox(height: 10),
+              Container(
+                height: 200,
+                padding: const EdgeInsets.only(right: 20, top: 20, bottom: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                // PANGGIL WIDGET GRAFIK DISINI
+                child: LineChart(_mainData()),
               ),
               const SizedBox(height: 20),
             ],
@@ -133,13 +209,11 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // --- WIDGET BUILDER: HEADER ---
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        // Gradient Hijau ke Hitam (Sesuai desain)
         gradient: LinearGradient(
           colors: [kPrimaryColor, const Color(0xFF1B5E20)],
           begin: Alignment.topLeft,
@@ -148,8 +222,7 @@ class DashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            // PERBAIKAN 2: withOpacity -> withValues
-            color: kPrimaryColor.withValues(alpha: 0.4),
+            color: kPrimaryColor.withOpacity(0.4),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -164,7 +237,7 @@ class DashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           Text(
-            "Mahasiswa IoT", // Nanti bisa diganti nama user
+            "Mahasiswa IoT",
             style: kHeadingStyle.copyWith(color: Colors.white, fontSize: 24),
           ),
         ],
@@ -172,7 +245,6 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // --- WIDGET BUILDER: KARTU SENSOR KECIL ---
   Widget _buildSensorCard({
     required String title,
     required String value,
@@ -187,8 +259,7 @@ class DashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            // PERBAIKAN 3: withOpacity -> withValues
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -198,7 +269,6 @@ class DashboardScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Ikon di pojok kanan atas
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -209,15 +279,13 @@ class DashboardScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  // PERBAIKAN 4: withOpacity -> withValues
-                  color: color.withValues(alpha: 0.1),
+                  color: color.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 20),
               ),
             ],
           ),
-          // Nilai Sensor
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -230,124 +298,29 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // --- KONFIGURASI CHART DASHBOARD (DENGAN LABEL) ---
+  // --- LOGIKA GRAFIK DINAMIS ---
   LineChartData _mainData() {
     return LineChartData(
-      // 1. Grid Latar Belakang (Opsional: biar lebih mudah baca angka)
-      gridData: FlGridData(
-        show: true,
-        drawVerticalLine: true,
-        horizontalInterval: 1,
-        verticalInterval: 2,
-        getDrawingHorizontalLine: (value) {
-          return FlLine(
-            color: Colors.grey.withValues(alpha: 0.1),
-            strokeWidth: 1,
-          );
-        },
-        getDrawingVerticalLine: (value) {
-          return FlLine(
-            color: Colors.grey.withValues(alpha: 0.1),
-            strokeWidth: 1,
-          );
-        },
-      ),
-
-      // 2. Judul Sumbu X dan Y
-      titlesData: FlTitlesData(
-        show: true,
-        rightTitles: const AxisTitles(
-          sideTitles: SideTitles(showTitles: false),
-        ),
-        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-
-        // LABEL BAWAH (Sumbu X - Waktu/Jam)
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            reservedSize: 30, // Ruang untuk teks agar tidak kepotong
-            interval: 2, // Tampilkan angka setiap kelipatan 2
-            getTitlesWidget: (value, meta) {
-              const style = TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              );
-
-              // Custom Text sesuai nilai X
-              Widget text;
-              switch (value.toInt()) {
-                case 0:
-                  text = const Text('00:00', style: style);
-                  break;
-                case 2:
-                  text = const Text('04:00', style: style);
-                  break;
-                case 4:
-                  text = const Text('08:00', style: style);
-                  break;
-                case 6:
-                  text = const Text('12:00', style: style);
-                  break;
-                case 8:
-                  text = const Text('16:00', style: style);
-                  break;
-                case 10:
-                  text = const Text('20:00', style: style);
-                  break;
-                default:
-                  text = const Text('', style: style);
-                  break;
-              }
-              return SideTitleWidget(axisSide: meta.axisSide, child: text);
-            },
-          ),
-        ),
-
-        // LABEL KIRI (Sumbu Y - Nilai pH)
-        leftTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            interval: 1, // Tampilkan angka setiap kelipatan 1
-            getTitlesWidget: (value, meta) {
-              const style = TextStyle(
-                color: Colors.grey,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              );
-              return Text(value.toInt().toString(), style: style);
-            },
-            reservedSize: 30, // Ruang untuk angka di kiri
-          ),
-        ),
-      ),
-
+      gridData: FlGridData(show: false),
+      titlesData: FlTitlesData(show: false),
       borderData: FlBorderData(show: false),
-      minX: 0,
-      maxX: 10,
+      // Atur batas min/max grafik agar tidak gepeng
       minY: 0,
-      maxY: 6,
+      maxY: 100, // Asumsi suhu max 100, bisa diubah
       lineBarsData: [
         LineChartBarData(
-          spots: const [
-            FlSpot(0, 3),
-            FlSpot(2, 2),
-            FlSpot(4, 5),
-            FlSpot(6, 3.1),
-            FlSpot(8, 4),
-            FlSpot(10, 3),
-          ],
+          spots: historyData, // <--- INI SUDAH PAKAI DATA ASLI
           isCurved: true,
           gradient: const LinearGradient(colors: [Colors.blue, Colors.purple]),
           barWidth: 4,
           isStrokeCapRound: true,
-          dotData: const FlDotData(show: false),
+          dotData: const FlDotData(show: true), // Tampilkan titik
           belowBarData: BarAreaData(
             show: true,
             gradient: LinearGradient(
               colors: [
-                Colors.blue.withValues(alpha: 0.3),
-                Colors.purple.withValues(alpha: 0.0),
+                Colors.blue.withOpacity(0.3),
+                Colors.purple.withOpacity(0.0),
               ],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,

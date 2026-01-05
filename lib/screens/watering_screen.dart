@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:uas_iot/theme.dart';
+import 'package:uas_iot/services/api_service.dart';
 
 class WateringScreen extends StatefulWidget {
   const WateringScreen({super.key});
@@ -15,27 +16,62 @@ class _WateringScreenState extends State<WateringScreen> {
 
   // Fungsi yang dijalankan saat tombol ditekan
   void _handleWatering() async {
+    // 1. Cegah tombol ditekan dua kali saat sedang proses
+    if (_isWatering) return;
+
     setState(() {
-      _isWatering = true; // Ubah status jadi 'Sedang Menyiram'
+      _isWatering = true; // Ubah status tombol jadi loading
     });
 
-    // SIMULASI KONEKSI IOT (Tunda 3 detik seolah-olah kirim data ke alat)
-    await Future.delayed(const Duration(seconds: 3));
+    // 2. KIRIM PERINTAH "ON" KE BACKEND
+    // Parameter "pompa" harus sesuai dengan yang didengar oleh ESP32 via MQTT
+    bool success = await ApiService.controlDevice("pompa", "ON");
 
-    // Jika halaman masih terbuka, kembalikan status dan beri notifikasi
+    // 3. LOGIKA JIKA SUKSES / GAGAL
+    if (success) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text("Menyiram... Pompa ON 🌊"),
+            backgroundColor: kPrimaryColor,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Biarkan menyiram selama 3 detik (Simulasi Durasi)
+      await Future.delayed(const Duration(seconds: 3));
+
+      // 4. KIRIM PERINTAH "OFF" (Otomatis matikan)
+      await ApiService.controlDevice("pompa", "OFF");
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Selesai. Pompa OFF."),
+            backgroundColor: Colors.grey,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } else {
+      // Jika gagal connect ke Flask
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Gagal: Tidak dapat terhubung ke Server ❌"),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+
+    // Kembalikan status tombol
     if (mounted) {
       setState(() {
-        _isWatering = false; // Selesai menyiram
+        _isWatering = false;
       });
-
-      // Munculkan pesan sukses di bawah layar (SnackBar)
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text("Perintah Terkirim: Pompa Air MENYALA! 🌊"),
-          backgroundColor: kPrimaryColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
     }
   }
 
@@ -43,26 +79,25 @@ class _WateringScreenState extends State<WateringScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kPageBg,
-      // SafeArea agar tidak tertutup poni HP/Status Bar
       body: SafeArea(
         child: Column(
           children: [
             // =========================================
-            // 1. AREA KAMERA (LIVE VIEW)
+            // 1. AREA KAMERA (LIVE VIEW - Placeholder)
             // =========================================
             Expanded(
-              flex: 3, // Mengambil 3/4 porsi layar
+              flex: 3,
               child: Container(
                 width: double.infinity,
                 margin: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.black87, // Background hitam ala layar CCTV
+                  color: Colors.black87,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(
-                        alpha: 0.2,
-                      ), // Fix deprecated
+                      color: Colors.black.withOpacity(
+                        0.2,
+                      ), // Gunakan withOpacity
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     ),
@@ -70,7 +105,6 @@ class _WateringScreenState extends State<WateringScreen> {
                 ),
                 child: Stack(
                   children: [
-                    // Placeholder Tampilan Kamera
                     Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -87,14 +121,13 @@ class _WateringScreenState extends State<WateringScreen> {
                           ),
                           const SizedBox(height: 5),
                           const Text(
-                            "(Sambungkan ke ESP32-CAM)",
+                            "(ESP32-CAM Not Connected)",
                             style: TextStyle(fontSize: 10, color: Colors.grey),
                           ),
                         ],
                       ),
                     ),
-
-                    // Label "LIVE" di pojok kiri atas
+                    // Badge "LIVE"
                     Positioned(
                       top: 15,
                       left: 15,
@@ -104,16 +137,22 @@ class _WateringScreenState extends State<WateringScreen> {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.redAccent.withValues(alpha: 0.8),
+                          color: Colors.redAccent.withOpacity(0.8),
                           borderRadius: BorderRadius.circular(5),
                         ),
-                        child: const Text(
-                          "LIVE",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.circle, size: 8, color: Colors.white),
+                            SizedBox(width: 5),
+                            Text(
+                              "LIVE",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -126,7 +165,7 @@ class _WateringScreenState extends State<WateringScreen> {
             // 2. PANEL KONTROL (BAWAH)
             // =========================================
             Expanded(
-              flex: 1, // Mengambil 1/4 porsi layar
+              flex: 1,
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -141,7 +180,7 @@ class _WateringScreenState extends State<WateringScreen> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withValues(alpha: 0.1),
+                      color: Colors.grey.withOpacity(0.1),
                       blurRadius: 10,
                       offset: const Offset(0, -5),
                     ),
@@ -150,27 +189,22 @@ class _WateringScreenState extends State<WateringScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Judul Panel
                     Text("Kontrol Penyiraman Manual", style: kSubHeadingStyle),
                     const SizedBox(height: 15),
-
-                    // TOMBOL WATERING BESAR
                     SizedBox(
                       width: double.infinity,
                       height: 60,
                       child: ElevatedButton(
-                        onPressed: _isWatering
-                            ? null
-                            : _handleWatering, // Disable jika sedang menyiram
+                        onPressed: _isWatering ? null : _handleWatering,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Colors.lightBlueAccent, // Warna biru air
+                          // Warna berubah jika sedang loading
+                          backgroundColor: _isWatering
+                              ? Colors.grey
+                              : Colors.lightBlueAccent,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
-                          elevation: _isWatering
-                              ? 0
-                              : 5, // Hilangkan bayangan saat ditekan
+                          elevation: _isWatering ? 0 : 5,
                         ),
                         child: _isWatering
                             ? const Row(
@@ -181,6 +215,7 @@ class _WateringScreenState extends State<WateringScreen> {
                                     height: 24,
                                     child: CircularProgressIndicator(
                                       color: Colors.white,
+                                      strokeWidth: 2,
                                     ),
                                   ),
                                   SizedBox(width: 10),
@@ -193,7 +228,6 @@ class _WateringScreenState extends State<WateringScreen> {
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  // Ikon Tetesan Air
                                   const Icon(
                                     FontAwesomeIcons.droplet,
                                     color: Colors.white,
@@ -205,23 +239,6 @@ class _WateringScreenState extends State<WateringScreen> {
                                       color: Colors.white,
                                       fontSize: 18,
                                     ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  // Hiasan tetesan air kecil sesuai desain
-                                  const Icon(
-                                    Icons.water_drop,
-                                    size: 15,
-                                    color: Colors.white70,
-                                  ),
-                                  const Icon(
-                                    Icons.water_drop,
-                                    size: 20,
-                                    color: Colors.white,
-                                  ),
-                                  const Icon(
-                                    Icons.water_drop,
-                                    size: 15,
-                                    color: Colors.white70,
                                   ),
                                 ],
                               ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-// import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:uas_iot/theme.dart';
 
 class HarvestScreen extends StatelessWidget {
@@ -49,8 +48,15 @@ class HarvestScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: kCardBg, // Warna abu-abu sesuai desain
+                color: Colors.white, // Gunakan putih agar lebih kontras
                 borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,21 +67,34 @@ class HarvestScreen extends StatelessWidget {
                   const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "Tanggal",
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          "Tanggal",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      Text(
-                        "Jenis",
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          "Jenis",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      Text(
-                        "Qty",
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          "Qty",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      Text(
-                        "Status",
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          "Status",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.end,
+                        ),
                       ),
                     ],
                   ),
@@ -102,6 +121,13 @@ class HarvestScreen extends StatelessWidget {
                     "Sortir",
                     Colors.orange,
                   ),
+                  _buildHarvestRow(
+                    "20 Nov",
+                    "Sawi",
+                    "6 kg",
+                    "Selesai",
+                    Colors.green,
+                  ),
                 ],
               ),
             ),
@@ -112,49 +138,61 @@ class HarvestScreen extends StatelessWidget {
             // 3. GRAFIK PRODUKTIVITAS (Bawah)
             // =========================================
             Container(
-              height: 250,
+              height: 300, // Sedikit lebih tinggi agar label muat
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: kCardBg,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text("Grafik Produktivitas", style: kSubHeadingStyle),
-                  const Text(
-                    "Chart: Produktivitas per Minggu",
-                    style: TextStyle(fontSize: 12),
+                  Text(
+                    "Chart: Hasil Panen (Kg) per Minggu",
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 20),
                   Expanded(
                     child: BarChart(
                       BarChartData(
                         borderData: FlBorderData(show: false),
                         gridData: const FlGridData(show: false),
-                        titlesData: const FlTitlesData(
-                          leftTitles: AxisTitles(
+                        titlesData: FlTitlesData(
+                          leftTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
-                          topTitles: AxisTitles(
+                          topTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
-                          rightTitles: AxisTitles(
+                          rightTitles: const AxisTitles(
                             sideTitles: SideTitles(showTitles: false),
                           ),
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
                               getTitlesWidget: _bottomTitles,
+                              reservedSize: 30,
                             ),
                           ),
                         ),
+                        // Konfigurasi Bar Chart
                         barGroups: [
-                          _makeBarGroup(0, 5), // Minggu 1
-                          _makeBarGroup(1, 8), // Minggu 2
-                          _makeBarGroup(2, 6), // Minggu 3
-                          _makeBarGroup(3, 9), // Minggu 4
+                          _makeBarGroup(0, 5), // Minggu 1: 5 Kg
+                          _makeBarGroup(1, 8), // Minggu 2: 8 Kg
+                          _makeBarGroup(2, 6), // Minggu 3: 6 Kg
+                          _makeBarGroup(3, 9), // Minggu 4: 9 Kg
                         ],
+                        // Jarak antar grup batang
+                        alignment: BarChartAlignment.spaceAround,
+                        maxY: 12, // Batas atas grafik
                       ),
                     ),
                   ),
@@ -179,7 +217,13 @@ class HarvestScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,6 +232,8 @@ class HarvestScreen extends StatelessWidget {
           Text(
             title,
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 5),
           Text(
@@ -211,25 +257,31 @@ class HarvestScreen extends StatelessWidget {
     Color statusColor,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 10.0), // Jarak lebih lega
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(date),
-          Text(type),
-          Text(qty),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(5),
-            ),
-            child: Text(
-              status,
-              style: TextStyle(
-                color: statusColor,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+          Expanded(flex: 2, child: Text(date)),
+          Expanded(flex: 3, child: Text(type)),
+          Expanded(flex: 2, child: Text(qty)),
+          Expanded(
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ),
@@ -238,7 +290,7 @@ class HarvestScreen extends StatelessWidget {
     );
   }
 
-  // Konfigurasi Bar Chart
+  // Konfigurasi Batang Grafik (Bar)
   BarChartGroupData _makeBarGroup(int x, double y) {
     return BarChartGroupData(
       x: x,
@@ -246,8 +298,17 @@ class HarvestScreen extends StatelessWidget {
         BarChartRodData(
           toY: y,
           color: kPrimaryColor,
-          width: 20,
-          borderRadius: BorderRadius.circular(4),
+          width: 25, // Batang sedikit lebih gemuk
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(6),
+            topRight: Radius.circular(6),
+          ),
+          // Tambahkan label angka di atas batang
+          backDrawRodData: BackgroundBarChartRodData(
+            show: true,
+            toY: 12, // Tinggi background abu-abu
+            color: Colors.grey.withOpacity(0.1),
+          ),
         ),
       ],
     );
@@ -255,7 +316,11 @@ class HarvestScreen extends StatelessWidget {
 
   // Label Bawah Chart
   static Widget _bottomTitles(double value, TitleMeta meta) {
-    const style = TextStyle(fontSize: 10);
+    const style = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.bold,
+      color: Colors.grey,
+    );
     String text;
     switch (value.toInt()) {
       case 0:
@@ -275,6 +340,7 @@ class HarvestScreen extends StatelessWidget {
     }
     return SideTitleWidget(
       axisSide: meta.axisSide,
+      space: 8, // Jarak teks dengan grafik
       child: Text(text, style: style),
     );
   }
