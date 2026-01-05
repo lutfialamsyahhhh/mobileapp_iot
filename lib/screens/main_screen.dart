@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:uas_iot/theme.dart';
-// Import halaman-halaman
-import 'package:uas_iot/screens/dashboard_screen.dart';
-import 'package:uas_iot/screens/analytics_screen.dart';
-import 'package:uas_iot/screens/watering_screen.dart';
-import 'package:uas_iot/screens/harvest_screen.dart';
+import 'dashboard_tab.dart';
+import 'analytics_tab.dart';
+import 'cctv_tab.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -15,61 +13,64 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
+  int _currentIndex = 0;
 
-  // Daftar halaman yang akan ditampilkan
-  final List<Widget> _pages = [
-    const DashboardScreen(),
-    const AnalyticsScreen(),
-    const WateringScreen(),
-    const HarvestScreen(),
+  // Daftar Halaman
+  final List<Widget> _tabs = [
+    const DashboardTab(),
+    const AnalyticsTab(),
+    const CctvTab(),
   ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Menampilkan halaman sesuai index yang dipilih
-      body: _pages[_selectedIndex],
-
-      // NAVIGASI BAWAH (Bottom Navigation Bar)
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(color: Colors.grey.shade800, width: 0.5),
-          ),
-        ),
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: kDarkBg, // Hitam (dari theme.dart)
-          selectedItemColor: kPrimaryColor, // Hijau (dari theme.dart)
-          unselectedItemColor: Colors.white54,
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_rounded),
-              label: 'Dashboard',
-            ),
-            BottomNavigationBarItem(
-              icon: FaIcon(FontAwesomeIcons.chartLine),
-              label: 'Analytics',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.water_drop),
-              label: 'Watering',
-            ),
-            BottomNavigationBarItem(
-              icon: FaIcon(FontAwesomeIcons.wheatAwn),
-              label: 'Harvest',
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF111827), // Warna Sidebar Web (Dark)
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const FaIcon(FontAwesomeIcons.leaf, color: Colors.green, size: 20),
+            const SizedBox(width: 10),
+            Text(
+              'TECH GREEN HOUSE',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                letterSpacing: 1.5,
+              ),
             ),
           ],
         ),
+        centerTitle: true,
+      ),
+      // IndexedStack menjaga halaman tetap hidup saat pindah tab
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _tabs,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (int index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: FaIcon(FontAwesomeIcons.house),
+            label: 'Dashboard',
+          ),
+          NavigationDestination(
+            icon: FaIcon(FontAwesomeIcons.chartLine),
+            label: 'Grafik',
+          ),
+          NavigationDestination(
+            icon: FaIcon(FontAwesomeIcons.video),
+            label: 'CCTV',
+          ),
+        ],
       ),
     );
   }

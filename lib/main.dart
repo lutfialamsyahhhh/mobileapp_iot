@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:uas_iot/screens/splash_screen.dart';
-import 'package:uas_iot/theme.dart';
+import 'theme.dart'; // Import file theme.dart kamu
+import 'screens/main_screen.dart'; // Import MainScreen
 
 void main() {
   runApp(const MyApp());
@@ -12,17 +12,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner:
-          false, // Menghilangkan pita 'Debug' di pojok kanan
-      title: 'Smart Greenhouse',
-      theme: ThemeData(
-        // Mengatur warna utama aplikasi secara global
-        primaryColor: kPrimaryColor,
-        scaffoldBackgroundColor: kPageBg, // Background default abu-abu terang
-        useMaterial3: true,
-      ),
-      // Arahkan home ke MainScreen yang baru kita buat
-      home: const SplashScreen(),
+      debugShowCheckedModeBanner: false,
+      title: 'Tech Green House',
+      theme: appTheme, // Panggil tema dari theme.dart
+      home: const MainScreen(), // Masuk ke MainScreen
     );
   }
 }
